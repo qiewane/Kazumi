@@ -6,11 +6,12 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/settings/theme_provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:kazumi/utils/storage.dart';
-import 'package:hive_ce_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:kazumi/request/request.dart';
 import 'package:kazumi/utils/proxy_manager.dart';
 import 'package:flutter/services.dart';
 import 'package:kazumi/utils/utils.dart';
+import 'package:kazumi/utils/tv_detector.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:kazumi/pages/error/storage_error_page.dart';
@@ -20,7 +21,19 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  if (Platform.isAndroid || Platform.isIOS) {
+
+  // TV 检测与适配
+  final isTV = await TVDetector().isTV;
+  
+  if (isTV) {
+    // TV 模式：强制横屏，沉浸模式
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  } else if (Platform.isAndroid || Platform.isIOS) {
+    // 手机/平板模式：边缘到边缘
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       systemNavigationBarColor: Colors.transparent,
