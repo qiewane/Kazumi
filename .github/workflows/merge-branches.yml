@@ -1,0 +1,62 @@
+name: Merge All Branches (Except api26)
+
+on:
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      new_branch_name:
+        description: '新分支名称'
+        required: true
+        default: 'merged-without-api26'
+
+jobs:
+  merge-branches:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # 获取所有历史
+        fetch-tags: false
+
+    - name: Set up Git
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+
+    - name: Get all branches
+      id: get-branches
+      run: |
+        # 获取所有远程分支，排除 api26
+        BRANCHES=$(git branch -r | grep -v 'HEAD' | grep -v 'api26' | sed 's/origin\///' | tr '\n' ' ')
+        echo "branches=$BRANCHES" >> $GITHUB_OUTPUT
+        echo "找到的分支: $BRANCHES"
+
+    - name: Create new branch
+      run: |
+        git checkout main
+        git checkout -b ${{ github.event.inputs.new_branch_name }}
+
+    - name: Merge branches
+      run: |
+        # 逐个合并分支（除了 api26）
+        for branch in ${{ steps.get-branches.outputs.branches }}; do
+          echo "正在合并分支: $branch"
+          
+          # 跳过 main/master 分支
+          if [[ "$branch" == "main" ]] || [[ "$branch" == "master" ]]; then
+            continue
+          fi
+          
+          # 尝试合并，如果冲突则跳过
+          git merge "origin/$branch" --no-ff -m "Merge branch '$branch'" || {
+            echo "合并 $branch 时发生冲突，跳过此分支"
+            git merge --abort
+          }
+        done
+
+    - name: Push new branch
+      run: |
+        git push origin ${{ github.event.inputs.new_branch_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
