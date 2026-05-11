@@ -23,19 +23,19 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace "com.example.kazumi"
-    compileSdk flutter.compileSdkVersion
-    // Pin ndk version to 21.3.6528147 to fix android build warning
-    // The build warning throws by gradle plugin, when the ndk is older than gradle plugin required version
-    ndkVersion "27.2.12479018"
+    namespace "com.predidit.kazumi"
+    compileSdk 33
+
+    // 使用兼容旧设备的NDK版本
+    ndkVersion "21.4.7075529"
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = '17'
+        jvmTarget = '1.8'
     }
 
     sourceSets {
@@ -43,22 +43,36 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "com.predidit.kazumi"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdkVersion flutter.minSdkVersion
-        targetSdkVersion flutter.targetSdkVersion
+        applicationId "com.predidit.kazumi.tv"
+        // 关键修改: 支持Android 5.0 (API 21) 及以上，覆盖小米电视安卓9以下
+        minSdkVersion 21
+        targetSdkVersion 28
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+
+        // 支持32位架构
+        ndk {
+            abiFilters 'armeabi-v7a', 'x86'
+        }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig signingConfigs.debug
+            // TV应用优化
+            minifyEnabled false
+            shrinkResources false
         }
+        debug {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    // 解决Android 9以下libmpv兼容性问题
+    packagingOptions {
+        pickFirst 'lib/armeabi-v7a/libmpv.so'
+        pickFirst 'lib/x86/libmpv.so'
     }
 }
 
@@ -66,15 +80,14 @@ flutter {
     source '../..'
 }
 
-dependencies {}
+dependencies {
+    // TV Leanback支持
+    implementation 'androidx.leanback:leanback:1.0.0'
+    implementation 'androidx.leanback:leanback-preference:1.0.0'
+}
 
-// F-droid splits APKs by ABI, and requires different versionCode for each ABI.
-// For flutter version X.Y.Z, version code is X0Y0ZA, where A is the ABI code.
-// See:
-// * https://developer.android.com/build/gradle-tips
-// * https://developer.android.com/studio/build/configure-apk-splits
-// * https://gitlab.com/fdroid/fdroiddata/-/blob/master/metadata/im.nfc.nfsee.yml
-ext.abiCodes = ["armeabi-v7a": 1, "arm64-v8a": 2, "x86_64": 4]
+// F-droid版本代码规则 (保留)
+ext.abiCodes = ["armeabi-v7a": 1, "x86": 3]
 import com.android.build.OutputFile
 android.applicationVariants.all { variant ->
     variant.outputs.each { output ->

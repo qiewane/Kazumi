@@ -1,0 +1,55 @@
+name: TV Build
+
+on:
+  push:
+    branches: [ tv-adaptation ]
+  pull_request:
+    branches: [ tv-adaptation ]
+  workflow_dispatch:
+
+jobs:
+  build-android-tv:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.0'  # 使用稳定版本
+        channel: 'stable'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'  # Android 9兼容
+        distribution: 'temurin'
+
+    - name: Get dependencies
+      run: flutter pub get
+
+    - name: Build TV APK (32-bit)
+      run: |
+        flutter build apk           --target-platform android-arm           --split-per-abi           --release           --dart-define=TV_MODE=true
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: kazumi-tv-armeabi-v7a
+        path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+
+    - name: Create Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/tv-adaptation'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: tv-v${{ github.run_number }}
+        name: Kazumi TV Build ${{ github.run_number }}
+        body: |
+          小米电视适配版本
+          - 支持32位ARM (armeabi-v7a)
+          - 兼容Android 5.0 - 9.0
+          - 支持遥控器和焦点导航
+          - 适配小米输入法
+        files: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

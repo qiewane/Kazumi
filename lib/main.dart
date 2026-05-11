@@ -1,99 +1,67 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:kazumi/app_module.dart';
-import 'package:kazumi/app_widget.dart';
-import 'package:flutter_modular/flutter_modular.dart';
-import 'package:kazumi/bean/settings/theme_provider.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:kazumi/utils/storage.dart';
-import 'package:hive_ce_flutter/hive_flutter.dart';
-import 'package:kazumi/utils/proxy_manager.dart';
 import 'package:flutter/services.dart';
-import 'package:kazumi/utils/utils.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:kazumi/pages/error/storage_error_page.dart';
-import 'package:provider/provider.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_modular/flutter_modular.dart';
+import 'app_module.dart';
+import 'app_widget.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  MediaKit.ensureInitialized();
-  if (Platform.isAndroid || Platform.isIOS) {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarDividerColor: Colors.transparent,
-      statusBarColor: Colors.transparent,
-    ));
-  }
 
-  if (Platform.isAndroid) {
-    await Utils.checkWebViewFeatureSupport();
-  }
+  // TV模式初始化
+  _initializeTVMode();
 
-  try {
-    final hivePath = '${(await getApplicationSupportDirectory()).path}/hive';
-    await Hive.initFlutter(hivePath);
-    await GStorage.init();
-  } catch (e) {
-    // Log the error for debugging (if logger is available)
-    debugPrint('Storage initialization failed: $e');
+  runApp(ModularApp(
+    module: AppModule(),
+    child: const AppWidget(),
+  ));
+}
 
-    if (Platform.isWindows) {
-      await windowManager.ensureInitialized();
-      windowManager.waitUntilReadyToShow(null, () async {
-        // Native window show has been blocked in `flutter_windows.cppL36` to avoid flickering.
-        // Without this. the window will never show on Windows.
-        await windowManager.show();
-        await windowManager.focus();
-      });
-    }
-    runApp(MaterialApp(
-        title: '初始化失败',
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        supportedLocales: const [
-          Locale.fromSubtags(
-              languageCode: 'zh', scriptCode: 'Hans', countryCode: "CN")
-        ],
-        locale: const Locale.fromSubtags(
-            languageCode: 'zh', scriptCode: 'Hans', countryCode: "CN"),
-        builder: (context, child) {
-          return const StorageErrorPage();
-        }));
-    return;
-  }
-  bool showWindowButton = await GStorage.setting
-      .get(SettingBoxKey.showWindowButton, defaultValue: false);
-  if (Utils.isDesktop()) {
-    await windowManager.ensureInitialized();
-    bool isLowResolution = await Utils.isLowResolution();
-    WindowOptions windowOptions = WindowOptions(
-      size: isLowResolution ? const Size(840, 600) : const Size(1280, 860),
-      center: true,
-      skipTaskbar: false,
-      // macOS always hide title bar regardless of showWindowButton setting
-      titleBarStyle: (Platform.isMacOS || !showWindowButton)
-          ? TitleBarStyle.hidden
-          : TitleBarStyle.normal,
-      windowButtonVisibility: showWindowButton,
-      title: 'Kazumi',
-    );
-    windowManager.waitUntilReadyToShow(windowOptions, () async {
-      // Native window show has been blocked in `flutter_windows.cppL36` to avoid flickering.
-      // Without this. the window will never show on Windows.
-      await windowManager.show();
-      await windowManager.focus();
-    });
-  }
-  ProxyManager.applyProxy();
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
-      child: ModularApp(
-        module: AppModule(),
-        child: const AppWidget(),
+void _initializeTVMode() {
+  // 强制横屏
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+
+  // 隐藏系统UI (TV全屏模式)
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+  // 设置TV专用主题
+  // 高对比度、大字体、清晰的焦点标识
+}
+
+/// TV主题配置
+class TVTheme {
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      // TV上使用更大的字体
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(fontSize: 32.0, fontWeight: FontWeight.bold),
+        displayMedium: TextStyle(fontSize: 28.0, fontWeight: FontWeight.bold),
+        displaySmall: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold),
+        headlineLarge: TextStyle(fontSize: 22.0, fontWeight: FontWeight.w600),
+        headlineMedium: TextStyle(fontSize: 20.0, fontWeight: FontWeight.w600),
+        headlineSmall: TextStyle(fontSize: 18.0, fontWeight: FontWeight.w600),
+        titleLarge: TextStyle(fontSize: 18.0),
+        titleMedium: TextStyle(fontSize: 16.0),
+        titleSmall: TextStyle(fontSize: 14.0),
+        bodyLarge: TextStyle(fontSize: 16.0),
+        bodyMedium: TextStyle(fontSize: 14.0),
+        bodySmall: TextStyle(fontSize: 12.0),
       ),
-    ),
-  );
+      // 焦点高亮颜色
+      focusColor: Colors.blue[300],
+      // 更大的点击区域
+      visualDensity: VisualDensity.comfortable,
+    );
+  }
+
+  static ThemeData get darkTheme {
+    return lightTheme.copyWith(
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xFF1A1A1A),
+    );
+  }
 }
