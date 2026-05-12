@@ -10,9 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        fetch-depth: 0  # 完整历史
+    
+    # 关键新增：克隆 media-kit 到本地，供 path 依赖使用
+    - name: Clone media-kit for local path dependencies
+      run: |
+        git clone https://github.com/Predidit/media-kit.git third_party/media-kit
+        cd third_party/media-kit
+        git checkout 21aacaf9600c4bd00f2a3c57310363bc0cc9597f
     
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
