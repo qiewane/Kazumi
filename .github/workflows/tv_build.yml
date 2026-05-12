@@ -11,7 +11,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    # 关键新增：克隆 media-kit 到本地，供 path 依赖使用
     - name: Clone media-kit for local path dependencies
       run: |
         git clone https://github.com/Predidit/media-kit.git third_party/media-kit
@@ -21,7 +20,7 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.19.0'
+        flutter-version: '3.19.6'  # 升级到这里
         channel: 'stable'
     
     - name: Setup Java
